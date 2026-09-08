@@ -11,3 +11,10 @@ test('analyst runs a labeled company model and invalidates stale assumptions', a
  await page.getByRole('button',{name:'Analyze statements'}).click();
  await expect(page.getByText('Cash behind earnings',{exact:true})).toBeVisible();
 });
+test('charts reconcile comparable statements and cash movements', async ({page})=>{
+ await page.goto('/');
+ await page.getByRole('button',{name:'Explore DEMO DATA'}).click();
+ await expect(page.getByRole('img',{name:'Revenue and operating cash flow by fiscal period'})).toBeVisible();
+ await expect(page.getByRole('img',{name:'Opening to closing cash reconciliation'})).toBeVisible();
+ await expect(page.getByText('Net income → operating cash flow',{exact:true})).toBeVisible();
+});
