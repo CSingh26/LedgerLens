@@ -27,3 +27,7 @@ Executed the Python test suite: **47 passed**. Source and browser review did not
 The initial labeled demo answers a financial question, exposes chronology and baseline comparisons, and the documented real ECB snapshot reports an honest negative finding for Ridge. The explanation distinguishes forecast error from profitability and makes reference-rate execution limits explicit. The stale export defect should be fixed before treating downloaded research packages as reproducible evidence.
 
 Finding sent to project owner and portfolio lead. Owner follow-up verification will be recorded when available.
+
+## Verified closure
+
+Owner fix `06e78464358d1d8a6a21feff6264cbc8a4d2705b` creates the full immutable request before awaiting, disables all research-form controls in flight, invalidates results/export on input/source changes and discards completions whose revision is stale. Independent source re-review and an independent run of `scripts/browser_state_regression.py` both passed. The actual Chromium regression verifies edits hide prior results, CSV/source/cost controls lock, and exported configuration matches the calculated request. The reproduced P2 is closed.
