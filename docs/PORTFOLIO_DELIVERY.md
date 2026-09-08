@@ -27,3 +27,7 @@ No claim of universal XBRL extraction: standard US-GAAP tag mapping, exact USD/s
 The live SEC path is functional and provider success/error behavior is tested with controlled responses. No successful live issuer retrieval using a real supplied personal identifying contact is claimed. There is no public deployment, persisted account workflow, production authentication or cross-process limiter. The bundled demo and screenshots demonstrate mechanics, not issuer investment conclusions. Input hashes support reproducibility, not uploaded-source authenticity.
 
 Documentation includes finance-first README, methodology, source dictionary, architecture, limitations, contribution guidance and MIT software licensing. Repository description and finance/SEC/Python topics are configured. All work remains on the public main branch; there are no synthetic padding commits or rewritten history.
+
+## Release checkpoint and independent review
+
+The fifteenth milestone is `e5ef5cdd0294f704dc23dc9a18e8c8c09e169e98`; [default-branch CI run34282477648](https://github.com/CSingh26/LedgerLens/actions/runs/34282477648) completed successfully. The following documentation commit records this immutable release checkpoint and the assigned independent ChronosResearch review. Its report is [docs/reviews/chronosresearch-review.md](reviews/chronosresearch-review.md).
