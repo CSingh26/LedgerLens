@@ -1,12 +1,142 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>LedgerLens — Financial statement intelligence</title><link rel="stylesheet" href="/static/style.css"><script defer src="/static/charts.js"></script><script defer src="/static/app.js"></script></head>
-<body><header><a class="brand" href="/">Ledger<span>Lens</span></a><span class="edition">FINANCIAL STATEMENT INTELLIGENCE</span><a href="/docs">API reference ↗</a></header>
-<main><section class="intro"><div><p class="eyebrow">FROM FILINGS TO FINANCIAL REASONING</p><h1>Can the growth<br>fund itself?</h1><p class="lede">Connect reported earnings, cash generation and capital efficiency. Every conclusion leads back to a filing, a period and an accounting relationship.</p></div><div class="intro-note"><span>01 / EVIDENCE FIRST</span><p>A growing income statement can conceal a weakening cash position.</p><small>Start with the statements. Investigate what connects them.</small></div></section>
-<section class="workspace"><aside class="inputs"><p class="eyebrow">RESEARCH INPUTS</p><h2>Choose your evidence</h2><button id="demo" class="secondary">Explore DEMO DATA</button>
-<label class="file">Import companyfacts JSON<input id="file" type="file" accept=".json,application/json"></label><p class="hint">Official SEC companyfacts format. Maximum 10 MB. Uploaded data is processed in memory.</p>
-<details><summary>Retrieve from SEC EDGAR</summary><label>Company CIK<input id="cik" type="text" inputmode="numeric" placeholder="e.g. 0000320193"></label><label>SEC identifying User-Agent<input id="contact" type="text" placeholder="Your name contact@company.org"></label><button id="fetch" class="secondary">Fetch companyfacts</button><p class="hint">No API key needed. Supply your own identifying contact; failures never become demo data.</p></details>
-<div id="source" class="source">No source selected</div>
-<form id="analysis-form"><label>Filing type<select id="form"><option value="10-K">Annual · 10-K</option><option value="10-Q">Quarter · 10-Q</option></select></label><label>Period start<input id="start" type="date" value="2025-01-01" required></label><label>Period end<input id="end" type="date" value="2025-12-31" required></label><label>As-of filing cutoff<input id="asof" type="date" value="2026-03-01" required></label><label>Normalized tax rate (%)<input id="tax" type="number" value="25" min="0" max="60" step="any" required></label><p class="hint">Tax is an analyst assumption used only for ROIC. Quarters are never silently annualized.</p><button id="analyze" type="submit" disabled>Analyze statements</button></form>
-<p id="status" role="status"></p><p id="error" role="alert"></p></aside>
-<section id="output" class="output"><div id="empty" class="empty"><span class="empty-number">≋</span><h2>Follow the money across the statements.</h2><p>Import a filing dataset or explore a clearly labeled teaching company. Choose a duration and the information available at your cutoff.</p><div class="empty-flow"><span>Income</span><span>→</span><span>Balance sheet</span><span>→</span><span>Cash flow</span></div></div><div id="results" hidden></div></section></section>
-<footer>LedgerLens · Financial reasoning supported by traceable evidence.<span>Local research software · No investment recommendation</span></footer></main></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LedgerLens — Financial statement intelligence</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script defer src="/static/charts.js"></script>
+    <script defer src="/static/app.js"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">Ledger<span>Lens</span></a
+      ><span class="edition">FINANCIAL STATEMENT INTELLIGENCE</span
+      ><a href="/docs">API reference ↗</a>
+    </header>
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">FROM FILINGS TO FINANCIAL REASONING</p>
+          <h1>Can the growth<br />fund itself?</h1>
+          <p class="lede">
+            Connect reported earnings, cash generation and capital efficiency.
+            Every conclusion leads back to a filing, a period and an accounting
+            relationship.
+          </p>
+        </div>
+        <div class="intro-note">
+          <span>01 / EVIDENCE FIRST</span>
+          <p>
+            A growing income statement can conceal a weakening cash position.
+          </p>
+          <small
+            >Start with the statements. Investigate what connects them.</small
+          >
+        </div>
+      </section>
+      <section class="workspace">
+        <aside class="inputs">
+          <p class="eyebrow">RESEARCH INPUTS</p>
+          <h2>Choose your evidence</h2>
+          <button id="demo" class="secondary">Explore DEMO DATA</button>
+          <label class="file"
+            >Import companyfacts JSON<input
+              id="file"
+              type="file"
+              accept=".json,application/json"
+          /></label>
+          <p class="hint">
+            Official SEC companyfacts format. Maximum 10 MB. Uploaded data is
+            processed in memory.
+          </p>
+          <details>
+            <summary>Retrieve from SEC EDGAR</summary>
+            <label
+              >Company CIK<input
+                id="cik"
+                type="text"
+                inputmode="numeric"
+                placeholder="e.g. 0000320193" /></label
+            ><label
+              >SEC identifying User-Agent<input
+                id="contact"
+                type="text"
+                placeholder="Your name contact@company.org" /></label
+            ><button id="fetch" class="secondary">Fetch companyfacts</button>
+            <p class="hint">
+              No API key needed. Supply your own identifying contact; failures
+              never become demo data.
+            </p>
+          </details>
+          <div id="source" class="source">No source selected</div>
+          <form id="analysis-form">
+            <label
+              >Filing type<select id="form">
+                <option value="10-K">Annual · 10-K</option>
+                <option value="10-Q">Quarter · 10-Q</option>
+              </select></label
+            ><label
+              >Period start<input
+                id="start"
+                type="date"
+                value="2025-01-01"
+                required /></label
+            ><label
+              >Period end<input
+                id="end"
+                type="date"
+                value="2025-12-31"
+                required /></label
+            ><label
+              >As-of filing cutoff<input
+                id="asof"
+                type="date"
+                value="2026-03-01"
+                required /></label
+            ><label
+              >Normalized tax rate (%)<input
+                id="tax"
+                type="number"
+                value="25"
+                min="0"
+                max="60"
+                step="any"
+                required
+            /></label>
+            <p class="hint">
+              Tax is an analyst assumption used only for ROIC. Quarters are
+              never silently annualized.
+            </p>
+            <button id="analyze" type="submit" disabled>
+              Analyze statements
+            </button>
+          </form>
+          <p id="status" role="status"></p>
+          <p id="error" role="alert"></p>
+        </aside>
+        <section id="output" class="output">
+          <div id="empty" class="empty">
+            <span class="empty-number">≋</span>
+            <h2>Follow the money across the statements.</h2>
+            <p>
+              Import a filing dataset or explore a clearly labeled teaching
+              company. Choose a duration and the information available at your
+              cutoff.
+            </p>
+            <div class="empty-flow">
+              <span>Income</span><span>→</span><span>Balance sheet</span
+              ><span>→</span><span>Cash flow</span>
+            </div>
+          </div>
+          <div id="results" hidden></div>
+        </section>
+      </section>
+      <footer>
+        LedgerLens · Financial reasoning supported by traceable evidence.<span
+          >Local research software · No investment recommendation</span
+        >
+      </footer>
+    </main>
+  </body>
+</html>

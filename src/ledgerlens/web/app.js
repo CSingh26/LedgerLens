@@ -1,30 +1,416 @@
-'use strict';
-const $ = id => document.getElementById(id);
-let facts = null, sourceLabel = 'USER PROVIDED DATA', result = null, latestRequest = null;
-const labels = {revenue:'Revenue',gross_profit:'Gross profit',ebit:'Operating income / EBIT',net_income:'Net income',cfo:'Operating cash flow',capex:'Capital expenditures',depreciation:'Reported D&A',assets:'Total assets',liabilities:'Total liabilities',equity:'Stockholders’ equity',cash:'Cash and equivalents',current_assets:'Current assets',current_liabilities:'Current liabilities',receivables:'Receivables',inventory:'Inventory',current_debt:'Current debt',long_term_debt:'Long-term debt',interest:'Interest expense',eps:'Diluted EPS',diluted_shares:'Diluted weighted shares',retained_earnings:'Retained earnings',cfi:'Investing cash flow',cff:'Financing cash flow',fx_cash:'FX effect on cash',cash_flow_balance:'Cash + restricted cash',repurchases:'Share repurchases'};
-function node(tag, text, className) { const e=document.createElement(tag); if(text!==undefined)e.textContent=String(text);if(className)e.className=className;return e; }
-const title = name => labels[name] ?? name.replaceAll('_',' ');
-const money = value => value===null ? 'Unavailable' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:1,notation:'compact'}).format(value);
-function clearResults(){result=null;latestRequest=null;$('results').replaceChildren();$('results').hidden=true;$('empty').hidden=false;}
-function busy(value){document.querySelectorAll('input,select,button').forEach(e=>e.disabled=value);if(!value)$('analyze').disabled=!facts;$('status').textContent=value?'Reading filing evidence and calculating…':'';}
-async function api(path, body){const response=await fetch(path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000)});const data=await response.json();if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:'Invalid request. Check the dates, filing duration and tax rate.');return data;}
-function setQuery(q){$('form').value=q.form;$('start').value=q.period_start;$('end').value=q.period_end;$('asof').value=q.as_of;$('tax').value=Number(q.tax_rate)*100;}
-function getQuery(){return {form:$('form').value,period_start:$('start').value,period_end:$('end').value,as_of:$('asof').value,tax_rate:Number($('tax').value)/100};}
-function source(text){$('source').textContent=text;$('analyze').disabled=!facts;}
-async function runAnalysis(){clearResults();$('error').textContent='';if(!$('analysis-form').reportValidity()||!facts)return;busy(true);try{latestRequest={companyfacts:facts,query:getQuery(),source_label:sourceLabel};result=await api('/api/analyze',latestRequest);render(result);}catch(err){clearResults();$('error').textContent=err.message;}finally{busy(false);}}
-$('analysis-form').addEventListener('submit',e=>{e.preventDefault();runAnalysis();});
-['form','start','end','asof','tax'].forEach(id=>$(id).addEventListener('input',clearResults));
-$('demo').addEventListener('click',async()=>{clearResults();facts=null;$('error').textContent='';busy(true);try{const demo=await api('/api/demo');facts=demo.companyfacts;sourceLabel='DEMO DATA';setQuery(demo.query);source('DEMO DATA · Fictional teaching statements');}catch(err){$('error').textContent=err.message;}finally{busy(false);}if(facts)await runAnalysis();});
-$('file').addEventListener('change',async e=>{clearResults();facts=null;$('error').textContent='';source('Reading uploaded file…');const file=e.target.files[0];if(!file)return;busy(true);try{if(file.size>10000000)throw Error('JSON exceeds 10 MB');const parsed=JSON.parse(await file.text());const imported=await api('/api/import',parsed.input?.companyfacts??parsed.companyfacts??parsed);facts=imported.companyfacts;if(parsed.input?.query)setQuery(parsed.input.query);else if(parsed.query)setQuery(parsed.query);sourceLabel='USER PROVIDED DATA';source(`USER PROVIDED DATA · ${facts.entityName}`);}catch(err){source('Import failed — no source selected');$('error').textContent=err.message;}finally{busy(false);}});
-$('fetch').addEventListener('click',async()=>{clearResults();facts=null;$('error').textContent='';source('Contacting SEC…');busy(true);try{const cik=$('cik').value.trim();if(!/^\d{1,10}$/.test(cik))throw Error('Enter a numeric CIK of at most 10 digits');const imported=await api('/api/fetch',{cik:Number(cik),user_agent:$('contact').value});facts=imported.companyfacts;sourceLabel='SEC EDGAR';source(`SEC EDGAR · ${facts.entityName} · ${imported.metadata.retrieved_at}`);}catch(err){source('SEC data unavailable — no source selected');$('error').textContent=err.message;}finally{busy(false);}});
-function panel(heading,description){const p=node('section',undefined,'panel');p.append(node('h3',heading));if(description)p.append(node('p',description,'sub'));return p;}
-function table(headers,rows){const wrap=node('div',undefined,'table-wrap'),t=node('table'),thead=node('thead'),tr=node('tr');headers.forEach(h=>tr.append(node('th',h)));thead.append(tr);t.append(thead);const body=node('tbody');rows.forEach(row=>{const r=node('tr');row.forEach(cell=>r.append(node('td',cell)));body.append(r);});t.append(body);wrap.append(t);return wrap;}
-function exportEvidence(){if(!result||!latestRequest)return;const blob=new Blob([JSON.stringify({format:'ledgerlens-evidence-v1',input:latestRequest,result},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='ledgerlens-evidence.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-function render(data){const root=$('results');root.replaceChildren();root.hidden=false;$('empty').hidden=true;const entity=node('div',undefined,'entity');entity.append(node('span',data.data_label,'tag'),node('h2',data.metadata.entity),node('small',`${data.evidence.form} · ${data.evidence.start} to ${data.evidence.end} · filed ${data.evidence.filed} · amounts in USD`));const exportButton=node('button','Export evidence package','secondary export-button');exportButton.addEventListener('click',exportEvidence);entity.append(exportButton);root.append(entity);const conclusions=node('div',undefined,'conclusions');data.interpretation.forEach((item,i)=>{const c=node('article',undefined,'conclusion'),body=node('div');body.append(node('h3',item.title),node('p',item.text));c.append(node('span',`0${i+1}`),body);conclusions.append(c);});root.append(conclusions);
- const historyPanel=panel('Growth and cash generation','Matched fiscal periods from the selected filing · Revenue (dark) and operating cash flow (green). Hover bars for exact values.');const historyChart=window.LedgerCharts.history(data.comparative_periods);if(historyChart)historyPanel.append(historyChart);else historyPanel.append(node('p','Comparable cash and revenue observations are unavailable.'));root.append(historyPanel);
- const cashPanel=panel('Where the cash went','Opening cash + operations + investing + financing + FX = closing cash. Same reporting scope; all components required.');const cashChart=window.LedgerCharts.cash(data.connections.cash_bridge);if(cashChart)cashPanel.append(cashChart);else cashPanel.append(node('p','The cash bridge is unavailable because an opening balance or cash-flow component is missing.','sub'));cashPanel.append(node('p',`Unexplained cash residual: ${money(data.connections.cash_bridge.residual)}`,'sub'));root.append(cashPanel);
- const connections=panel('The statements speak to each other');const connectionGrid=node('div',undefined,'connection-grid');[['Net income → operating cash flow',data.connections.income_to_cfo_adjustments,'Aggregate noncash and working-capital adjustments; investigate the underlying reconciliation.'],['Net income → retained earnings',data.connections.retained_earnings_other_changes,'Other retained-earnings movement beyond net income; may include dividends and accounting adjustments.']].forEach(([heading,value,detail])=>{const c=node('article');c.append(node('h4',heading),node('strong',money(value)),node('p',detail,'sub'));connectionGrid.append(c);});connections.append(connectionGrid);root.append(connections);
- const financial=panel('Financial relationships','Margins and growth are fractions expressed as percentages. Undefined denominators or missing facts remain unavailable.');financial.append(table(['Measure','Value'],Object.entries(data.metrics).map(([key,value])=>[title(key),value===null?'Unavailable':/margin|yoy|qoq|cagr$|^ro[aei]/.test(key)?`${(value*100).toFixed(2)}%`:/ratio|coverage|conversion|debt_to/.test(key)?`${value.toFixed(2)}×`:key==='cagr_fiscal_years'?`${value} fiscal years`:money(value)])));root.append(financial);
- const evidence=panel('Structured filing facts','Values match the displayed accession and financial duration. Derived YTD differences retain both source observations.');evidence.append(table(['Reported item','Source tag / basis','Value'],Object.entries(data.evidence.facts).map(([key,fact])=>[title(key),fact?`${fact.tag}${fact.kind==='structured_fact'?'':' · derived quarter'}`:'No matched fact',fact===null?'Unavailable':fact.unit==='USD'?money(fact.value):`${fact.value.toLocaleString()} ${fact.unit}`])));if(data.evidence.filing_url){const a=node('a','Open the selected SEC filing ↗');a.href=data.evidence.filing_url;a.target='_blank';a.rel='noopener noreferrer';evidence.append(a);}root.append(evidence);
- const warning=panel('Assumptions and unavailable evidence');const list=node('ul',undefined,'warnings');data.warnings.forEach(w=>list.append(node('li',w)));warning.append(list,node('p',`Normalized input SHA-256: ${data.metadata.input_sha256}`,'hash'));root.append(warning);
+"use strict";
+const $ = (id) => document.getElementById(id);
+let facts = null,
+  sourceLabel = "USER PROVIDED DATA",
+  sourceMetadata = null,
+  result = null,
+  latestRequest = null;
+const labels = {
+  short_term_borrowings: "Short-term borrowings",
+  reported_long_term_debt: "Reported long-term debt proxy",
+  debt: "Debt with explicit short-term coverage",
+  revenue: "Revenue",
+  gross_profit: "Gross profit",
+  ebit: "Operating income / EBIT",
+  net_income: "Net income",
+  cfo: "Operating cash flow",
+  capex: "Capital expenditures",
+  depreciation: "Reported D&A",
+  assets: "Total assets",
+  liabilities: "Total liabilities",
+  equity: "Stockholders’ equity",
+  cash: "Cash and equivalents",
+  current_assets: "Current assets",
+  current_liabilities: "Current liabilities",
+  receivables: "Receivables",
+  inventory: "Inventory",
+  current_debt: "Current debt",
+  long_term_debt: "Long-term debt",
+  interest: "Interest expense",
+  eps: "Diluted EPS",
+  diluted_shares: "Diluted weighted shares",
+  retained_earnings: "Retained earnings",
+  cfi: "Investing cash flow",
+  cff: "Financing cash flow",
+  fx_cash: "FX effect on cash",
+  cash_flow_balance: "Cash + restricted cash",
+  repurchases: "Share repurchases",
+};
+function node(tag, text, className) {
+  const e = document.createElement(tag);
+  if (text !== undefined) e.textContent = String(text);
+  if (className) e.className = className;
+  return e;
+}
+const title = (name) => labels[name] ?? name.replaceAll("_", " ");
+const money = (value) =>
+  value === null
+    ? "Unavailable"
+    : new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 1,
+        notation: "compact",
+      }).format(value);
+function clearResults() {
+  result = null;
+  latestRequest = null;
+  $("results").replaceChildren();
+  $("results").hidden = true;
+  $("empty").hidden = false;
+}
+function busy(value) {
+  document
+    .querySelectorAll("input,select,button")
+    .forEach((e) => (e.disabled = value));
+  if (!value) $("analyze").disabled = !facts;
+  $("status").textContent = value
+    ? "Reading filing evidence and calculating…"
+    : "";
+}
+async function api(path, body) {
+  const response = await fetch(path, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(30000),
+  });
+  const data = await response.json();
+  if (!response.ok)
+    throw Error(
+      typeof data.detail === "string"
+        ? data.detail
+        : "Invalid request. Check the dates, filing duration and tax rate.",
+    );
+  return data;
+}
+function setQuery(q) {
+  $("form").value = q.form;
+  $("start").value = q.period_start;
+  $("end").value = q.period_end;
+  $("asof").value = q.as_of;
+  $("tax").value = Number(q.tax_rate) * 100;
+}
+function getQuery() {
+  return {
+    form: $("form").value,
+    period_start: $("start").value,
+    period_end: $("end").value,
+    as_of: $("asof").value,
+    tax_rate: Number($("tax").value) / 100,
+  };
+}
+function source(text) {
+  $("source").textContent = text;
+  $("analyze").disabled = !facts;
+}
+async function runAnalysis() {
+  clearResults();
+  $("error").textContent = "";
+  if (!$("analysis-form").reportValidity() || !facts) return;
+  busy(true);
+  try {
+    latestRequest = {
+      companyfacts: facts,
+      query: getQuery(),
+      source_label: sourceLabel,
+    };
+    result = await api("/api/analyze", latestRequest);
+    render(result);
+  } catch (err) {
+    clearResults();
+    $("error").textContent = err.message;
+  } finally {
+    busy(false);
+  }
+}
+$("analysis-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  runAnalysis();
+});
+["form", "start", "end", "asof", "tax"].forEach((id) =>
+  $(id).addEventListener("input", clearResults),
+);
+$("demo").addEventListener("click", async () => {
+  clearResults();
+  facts = null;
+  sourceMetadata = null;
+  $("error").textContent = "";
+  busy(true);
+  try {
+    const demo = await api("/api/demo");
+    facts = demo.companyfacts;
+    sourceLabel = "DEMO DATA";
+    setQuery(demo.query);
+    source("DEMO DATA · Fictional teaching statements");
+  } catch (err) {
+    $("error").textContent = err.message;
+  } finally {
+    busy(false);
+  }
+  if (facts) await runAnalysis();
+});
+$("file").addEventListener("change", async (e) => {
+  clearResults();
+  facts = null;
+  sourceMetadata = null;
+  $("error").textContent = "";
+  source("Reading uploaded file…");
+  const file = e.target.files[0];
+  if (!file) return;
+  busy(true);
+  try {
+    if (file.size > 10000000) throw Error("JSON exceeds 10 MB");
+    const parsed = JSON.parse(await file.text());
+    const imported = await api(
+      "/api/import",
+      parsed.input?.companyfacts ?? parsed.companyfacts ?? parsed,
+    );
+    facts = imported.companyfacts;
+    sourceMetadata = {
+      observation: parsed.source_metadata?.observation ?? imported.metadata,
+      origin: "Supplied provenance; not verified",
+      source_authenticity_verified: false,
+    };
+    if (parsed.input?.query) setQuery(parsed.input.query);
+    else if (parsed.query) setQuery(parsed.query);
+    sourceLabel = "USER PROVIDED DATA";
+    source(`USER PROVIDED DATA · ${facts.entityName}`);
+  } catch (err) {
+    source("Import failed — no source selected");
+    $("error").textContent = err.message;
+  } finally {
+    busy(false);
+  }
+});
+$("fetch").addEventListener("click", async () => {
+  clearResults();
+  facts = null;
+  sourceMetadata = null;
+  $("error").textContent = "";
+  source("Contacting SEC…");
+  busy(true);
+  try {
+    const cik = $("cik").value.trim();
+    if (!/^\d{1,10}$/.test(cik))
+      throw Error("Enter a numeric CIK of at most 10 digits");
+    const imported = await api("/api/fetch", {
+      cik: Number(cik),
+      user_agent: $("contact").value,
+    });
+    facts = imported.companyfacts;
+    sourceLabel = "SEC EDGAR";
+    sourceMetadata = {
+      observation: imported.metadata,
+      origin: "SEC retrieval in this session",
+      source_authenticity_verified: true,
+    };
+    source(
+      `SEC EDGAR · ${facts.entityName} · ${imported.metadata.retrieved_at}`,
+    );
+  } catch (err) {
+    source("SEC data unavailable — no source selected");
+    $("error").textContent = err.message;
+  } finally {
+    busy(false);
+  }
+});
+function panel(heading, description) {
+  const p = node("section", undefined, "panel");
+  p.append(node("h3", heading));
+  if (description) p.append(node("p", description, "sub"));
+  return p;
+}
+function table(headers, rows) {
+  const wrap = node("div", undefined, "table-wrap"),
+    t = node("table"),
+    thead = node("thead"),
+    tr = node("tr");
+  headers.forEach((h) => tr.append(node("th", h)));
+  thead.append(tr);
+  t.append(thead);
+  const body = node("tbody");
+  rows.forEach((row) => {
+    const r = node("tr");
+    row.forEach((cell) => r.append(node("td", cell)));
+    body.append(r);
+  });
+  t.append(body);
+  wrap.append(t);
+  return wrap;
+}
+function exportEvidence() {
+  if (!result || !latestRequest) return;
+  const blob = new Blob(
+    [
+      JSON.stringify(
+        {
+          format: "ledgerlens-evidence-v1",
+          input: latestRequest,
+          source_metadata: sourceMetadata,
+          result,
+        },
+        null,
+        2,
+      ),
+    ],
+    { type: "application/json" },
+  );
+  const url = URL.createObjectURL(blob),
+    a = document.createElement("a");
+  a.href = url;
+  a.download = "ledgerlens-evidence.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function render(data) {
+  const root = $("results");
+  root.replaceChildren();
+  root.hidden = false;
+  $("empty").hidden = true;
+  const entity = node("div", undefined, "entity");
+  entity.append(
+    node("span", data.data_label, "tag"),
+    node("h2", data.metadata.entity),
+    node(
+      "small",
+      `${data.evidence.form} · ${data.evidence.start} to ${data.evidence.end} · filed ${data.evidence.filed} · amounts in USD`,
+    ),
+  );
+  const exportButton = node(
+    "button",
+    "Export evidence package",
+    "secondary export-button",
+  );
+  exportButton.addEventListener("click", exportEvidence);
+  entity.append(exportButton);
+  root.append(entity);
+  const conclusions = node("div", undefined, "conclusions");
+  data.interpretation.forEach((item, i) => {
+    const c = node("article", undefined, "conclusion"),
+      body = node("div");
+    body.append(node("h3", item.title), node("p", item.text));
+    c.append(node("span", `0${i + 1}`), body);
+    conclusions.append(c);
+  });
+  root.append(conclusions);
+  const historyPanel = panel(
+    "Growth and cash generation",
+    "Matched fiscal periods from the selected filing · Revenue (dark) and operating cash flow (green). Hover bars for exact values.",
+  );
+  const historyChart = window.LedgerCharts.history(data.comparative_periods);
+  if (historyChart) historyPanel.append(historyChart);
+  else
+    historyPanel.append(
+      node("p", "Comparable cash and revenue observations are unavailable."),
+    );
+  root.append(historyPanel);
+  const cashPanel = panel(
+    "Where the cash went",
+    "Opening cash + operations + investing + financing + FX = closing cash. Same reporting scope; all components required.",
+  );
+  const cashChart = window.LedgerCharts.cash(data.connections.cash_bridge);
+  if (cashChart) cashPanel.append(cashChart);
+  else
+    cashPanel.append(
+      node(
+        "p",
+        "The cash bridge is unavailable because an opening balance or cash-flow component is missing.",
+        "sub",
+      ),
+    );
+  cashPanel.append(
+    node(
+      "p",
+      `Unexplained cash residual: ${money(data.connections.cash_bridge.residual)}`,
+      "sub",
+    ),
+  );
+  root.append(cashPanel);
+  const connections = panel("The statements speak to each other");
+  const connectionGrid = node("div", undefined, "connection-grid");
+  [
+    [
+      "Net income → operating cash flow",
+      data.connections.income_to_cfo_adjustments,
+      "Aggregate noncash and working-capital adjustments; investigate the underlying reconciliation.",
+    ],
+    [
+      "Net income → retained earnings",
+      data.connections.retained_earnings_other_changes,
+      "Other retained-earnings movement beyond net income; may include dividends and accounting adjustments.",
+    ],
+  ].forEach(([heading, value, detail]) => {
+    const c = node("article");
+    c.append(
+      node("h4", heading),
+      node("strong", money(value)),
+      node("p", detail, "sub"),
+    );
+    connectionGrid.append(c);
+  });
+  connections.append(connectionGrid);
+  root.append(connections);
+  const financial = panel(
+    "Financial relationships",
+    "Margins and growth are fractions expressed as percentages. Undefined denominators or missing facts remain unavailable.",
+  );
+  financial.append(
+    table(
+      ["Measure", "Value"],
+      Object.entries(data.metrics).map(([key, value]) => [
+        title(key),
+        value === null
+          ? "Unavailable"
+          : /margin|yoy|qoq|cagr$|^ro[aei]/.test(key)
+            ? `${(value * 100).toFixed(2)}%`
+            : /ratio|coverage|conversion|debt_to/.test(key)
+              ? `${value.toFixed(2)}×`
+              : key === "cagr_fiscal_years"
+                ? `${value} fiscal years`
+                : money(value),
+      ]),
+    ),
+  );
+  root.append(financial);
+  const evidence = panel(
+    "Structured filing facts",
+    "Values match the displayed accession and financial duration. Derived YTD differences retain both source observations.",
+  );
+  evidence.append(
+    table(
+      ["Reported item", "Source tag / basis", "Value"],
+      Object.entries(data.evidence.facts).map(([key, fact]) => [
+        title(key),
+        fact
+          ? `${fact.tag}${fact.kind === "structured_fact" ? "" : " · derived quarter"}`
+          : "No matched fact",
+        fact === null
+          ? "Unavailable"
+          : fact.unit === "USD"
+            ? money(fact.value)
+            : `${fact.value.toLocaleString()} ${fact.unit}`,
+      ]),
+    ),
+  );
+  if (data.evidence.filing_url) {
+    const a = node("a", "Open the selected SEC filing ↗");
+    a.href = data.evidence.filing_url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    evidence.append(a);
+  }
+  root.append(evidence);
+  const warning = panel("Assumptions and unavailable evidence");
+  const list = node("ul", undefined, "warnings");
+  data.warnings.forEach((w) => list.append(node("li", w)));
+  warning.append(
+    list,
+    node(
+      "p",
+      `Normalized input SHA-256: ${data.metadata.input_sha256}`,
+      "hash",
+    ),
+  );
+  root.append(warning);
 }

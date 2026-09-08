@@ -1,1 +1,13 @@
-{"name":"ledgerlens-ui-checks","private":true,"scripts":{"test:e2e":"playwright test","check:js":"node --check src/ledgerlens/web/app.js"},"devDependencies":{"@playwright/test":"1.55.1"}}
+{
+  "name": "ledgerlens-ui-checks",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test",
+    "check:js": "node --check src/ledgerlens/web/app.js && node --check src/ledgerlens/web/charts.js",
+    "lint": "prettier --check src/ledgerlens/web tests/browser playwright.config.js package.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.1",
+    "prettier": "3.3.3"
+  }
+}
