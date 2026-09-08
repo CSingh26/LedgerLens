@@ -3,3 +3,5 @@
 [hidden]{display:none!important}
 
 .panel svg{display:block;width:100%;height:auto;margin-top:18px}.connection-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.connection-grid h4{font-size:12px}.connection-grid strong{font:25px Georgia}.connection-grid article{border-left:2px solid #b8d0c0;padding-left:15px}@media(max-width:680px){.connection-grid{grid-template-columns:1fr}}
+
+.export-button{width:auto;display:block;margin-top:16px;font-size:11px}
